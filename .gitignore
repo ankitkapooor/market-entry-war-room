@@ -6,3 +6,4 @@ venv/
 data/app.db
 .pytest_cache/
 *.egg-info/
+frontend/node_modules/

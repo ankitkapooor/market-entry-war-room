@@ -17,7 +17,33 @@ python -m scripts.seed_demo          # loads the placeholder dataset
 uvicorn app.main:app --reload        # http://127.0.0.1:8000/docs
 ```
 
-Then:
+### Web UI
+
+The war room is a React app in `frontend/`. Build it once, then open it from the
+same server as the API:
+
+```bash
+cd frontend && npm install && npm run build && cd ..
+uvicorn app.main:app --reload
+# → http://127.0.0.1:8000/ui/
+```
+
+For development with hot reload:
+
+```bash
+# terminal 1
+uvicorn app.main:app --reload
+
+# terminal 2
+cd frontend && npm install && npm run dev
+# → http://127.0.0.1:5173/ui/
+```
+
+The UI walks through strategy interpretation, market ranking, side-by-side
+comparison, and Monte Carlo sensitivity. Weight sliders re-rank markets instantly
+on the client; sensitivity runs hit the API.
+
+### API (curl)
 
 ```bash
 curl -s localhost:8000/api/v1/strategy/parse -H 'content-type: application/json' \

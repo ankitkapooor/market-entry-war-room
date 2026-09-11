@@ -77,14 +77,24 @@ def score_markets(markets: list[MarketMetrics], weights: dict[str, float]) -> Sc
     }
     effective_weights, warnings = redistribute(weights, available)
     factor_order = sorted(effective_weights)
+    # Report every factor that has data, including ones the caller gave no
+    # weight. Only the weighted ones move the score, but a caller asking "what
+    # are we ignoring?" needs to see the rest.
+    reported_factors = sorted(available)
 
     scores: list[float] = []
     clean_factor_scores: list[dict[str, float]] = []
     for factor_scores in per_market_factor_scores:
-        present = {f: factor_scores[f] for f in factor_order if factor_scores[f] is not None}
-        clean_factor_scores.append({f: round(v, 2) for f, v in present.items()})
+        clean_factor_scores.append(
+            {
+                f: round(factor_scores[f], 2)
+                for f in reported_factors
+                if factor_scores[f] is not None
+            }
+        )
 
         # A market missing a factor that others have: renormalize over what it has.
+        present = {f: factor_scores[f] for f in factor_order if factor_scores[f] is not None}
         weight_total = sum(effective_weights[f] for f in present)
         if weight_total <= 0:
             scores.append(0.0)
@@ -95,8 +105,8 @@ def score_markets(markets: list[MarketMetrics], weights: dict[str, float]) -> Sc
 
     partial = [
         markets[i].name
-        for i, fs in enumerate(clean_factor_scores)
-        if len(fs) < len(factor_order)
+        for i, fs in enumerate(per_market_factor_scores)
+        if any(fs[f] is None for f in factor_order)
     ]
     if partial:
         warnings.append(
