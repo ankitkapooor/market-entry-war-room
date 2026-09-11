@@ -1,0 +1,59 @@
+# Every scored metric must declare a direction: does a higher raw value make a
+# market more attractive (positive) or less attractive (negative)?
+
+metrics:
+  population:
+    direction: positive
+    label: Total population
+    unit: people
+
+  target_population:
+    direction: positive
+    label: Population inside the target age range
+    unit: people
+    derived_from: B01001 age brackets, prorated to the strategy's target age range
+
+  target_age_share:
+    direction: positive
+    label: Share of population inside the target age range
+    unit: share
+    derived_from: target_population / population
+
+  median_household_income:
+    direction: positive
+    label: Median household income
+    unit: usd
+
+  high_income_share:
+    direction: positive
+    label: Share of households above the target income threshold
+    unit: share
+    derived_from: B19001 household income brackets at or above the strategy's income floor
+
+  population_growth:
+    direction: positive
+    label: Population growth over the vintage gap
+    unit: share
+    derived_from: population at the current vintage vs the prior vintage
+
+  income_growth:
+    direction: positive
+    label: Median household income growth over the vintage gap
+    unit: share
+    derived_from: median_household_income at the current vintage vs the prior vintage
+
+  bachelor_degree_share:
+    direction: positive
+    label: Share of adults 25+ with a bachelor's degree or higher
+    unit: share
+    derived_from: B15003 bachelor's/master's/professional/doctorate over population 25+
+
+  median_rent:
+    direction: negative
+    label: Median gross rent (residential proxy for operating cost, NOT commercial rent)
+    unit: usd
+
+  competitive_density:
+    direction: negative
+    label: Competing establishments per 100k residents
+    unit: per_100k

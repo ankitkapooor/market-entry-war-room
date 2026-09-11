@@ -1,0 +1,38 @@
+# The analytical framework. Factor weights must sum to 1.0.
+# Within a factor, metric weights must sum to 1.0.
+# Edit this file to change how markets are scored; no Python changes required.
+
+factors:
+  market_size:
+    weight: 0.20
+    metrics:
+      population: 0.6
+      target_population: 0.4
+
+  affluence:
+    weight: 0.20
+    metrics:
+      median_household_income: 0.6
+      high_income_share: 0.4
+
+  growth:
+    weight: 0.20
+    metrics:
+      population_growth: 0.6
+      income_growth: 0.4
+
+  customer_fit:
+    weight: 0.20
+    metrics:
+      target_age_share: 0.7
+      bachelor_degree_share: 0.3
+
+  competition:
+    weight: 0.10
+    metrics:
+      competitive_density: 1.0
+
+  cost:
+    weight: 0.10
+    metrics:
+      median_rent: 1.0
