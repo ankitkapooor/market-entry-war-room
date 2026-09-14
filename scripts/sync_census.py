@@ -12,59 +12,31 @@ from __future__ import annotations
 
 import sys
 
-from app.clients.census import SOURCE, fetch_vintage, state_codes_from_name
+from app.bootstrap import sync_census_data
 from app.config import settings
-from app.db.database import init_db, SessionLocal
-from app.db.repositories import (
-    prune_markets_without_vintage,
-    purge_source,
-    replace_observations,
-    upsert_market,
-)
 from app.errors import WarRoomError
 
 
 def main() -> int:
-    vintage = settings.census_vintage
-    prior = settings.census_prior_vintage
-
     try:
-        print(f"Fetching ACS 1-year {vintage}...")
-        names, rows = fetch_vintage(vintage)
-        print(f"  {len(names)} metros, {len(rows)} observations")
-
-        print(f"Fetching ACS 1-year {prior} (for growth metrics)...")
-        prior_names, prior_rows = fetch_vintage(prior)
-        print(f"  {len(prior_names)} metros, {len(prior_rows)} observations")
+        summary = sync_census_data()
     except WarRoomError as exc:
         print(f"ERROR: {exc.message}", file=sys.stderr)
         return 1
 
-    # Only the growth inputs are needed from the prior vintage.
-    prior_rows = [r for r in prior_rows if r["metric"] in ("population", "median_household_income")]
-
-    init_db()
-    with SessionLocal() as session:
-        for market_id, name in names.items():
-            upsert_market(session, market_id, name, state_codes_from_name(name))
-        written = replace_observations(session, [*rows, *prior_rows], SOURCE)
-
-        # Real data supersedes the placeholder dataset entirely. Leaving any of
-        # it behind would mix invented numbers into a real-data ranking.
-        purged = purge_source(session, "synthetic_seed")
-        stale = prune_markets_without_vintage(session, vintage)
-        session.commit()
-
-    print(f"Stored {written} observations from {SOURCE} across vintages {prior} and {vintage}.")
-    if purged:
-        print(f"Removed {purged} placeholder observations superseded by real data.")
-    if stale:
-        print(f"Pruned {len(stale)} market(s) with no {vintage} data (retired CBSA codes).")
-
-    without_growth = len(names) - len(set(names) & {r["market_id"] for r in prior_rows})
-    if without_growth:
+    print(
+        f"Stored {summary['observations']} observations across vintages "
+        f"{settings.census_prior_vintage} and {settings.census_vintage} "
+        f"for {summary['markets']} markets."
+    )
+    if summary["purged"]:
+        print(f"Removed {summary['purged']} placeholder observations superseded by real data.")
+    if summary["stale_markets"]:
+        print(f"Pruned {summary['stale_markets']} market(s) with retired CBSA codes.")
+    if summary["markets_without_growth"]:
         print(
-            f"{without_growth} of {len(names)} metros have no {prior} counterpart, usually "
+            f"{summary['markets_without_growth']} of {summary['markets']} metros have no "
+            f"{settings.census_prior_vintage} counterpart, usually "
             "because their CBSA code changed. Growth metrics are recorded as missing for "
             "them and their weight is redistributed, never scored as zero."
         )

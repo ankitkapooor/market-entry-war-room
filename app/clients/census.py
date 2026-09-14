@@ -95,6 +95,8 @@ def _request(client: httpx.Client, vintage: int, variables: list[str]) -> list[l
         response = client.get(f"{BASE_URL}/{vintage}/acs/acs1", params=params)
     except httpx.TimeoutException as exc:
         raise ExternalTimeout(f"Census API timed out for vintage {vintage}") from exc
+    except httpx.HTTPError as exc:
+        raise CensusAPIError(f"Census API request failed for vintage {vintage}: {exc}") from exc
 
     # A bad or missing key is a 302 to an HTML page, not a 4xx.
     if response.status_code in (301, 302):

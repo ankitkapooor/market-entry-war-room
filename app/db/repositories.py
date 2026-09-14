@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db.database import (
     Market,
     Observation,
     Scenario,
     ScenarioResult,
     ScenarioWeight,
+    StrategyParse,
 )
 from app.errors import UnknownMarket
 
@@ -91,10 +94,9 @@ def purge_source(session: Session, source: str) -> int:
 def prune_markets_without_vintage(session: Session, vintage: int) -> list[str]:
     """Drop every market and observation with no data at `vintage`.
 
-    CBSA codes are retired and reissued between vintages (Cleveland moved from
-    17460 to 17410 between 2018 and 2023). A prior-vintage pull therefore writes
-    observations under codes that no longer exist; without this they linger as
-    orphans that nothing can ever score.
+    CBSA codes are retired and reissued between vintages. A prior-vintage pull
+    can therefore contain codes that no longer exist; without this cleanup they
+    would linger as orphans that nothing can ever score.
     """
     session.flush()  # sessions are autoflush=False; pending inserts must count as current
     current = set(
@@ -121,6 +123,7 @@ def save_scenario(
     warnings: list[str],
     results: list[dict],
 ) -> None:
+    prune_scenarios(session)
     session.add(
         Scenario(
             id=scenario_id,
@@ -143,6 +146,93 @@ def save_scenario(
             )
         )
     session.commit()
+
+
+def prune_scenarios(session: Session) -> int:
+    """Bound public-demo storage by age and count before saving a scenario."""
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+        days=max(1, settings.scenario_retention_days)
+    )
+    ordered = list(
+        session.scalars(select(Scenario).order_by(Scenario.created_at.desc()))
+    )
+    keep_before_insert = max(0, settings.scenario_max_saved - 1)
+    stale_ids = {
+        row.id
+        for index, row in enumerate(ordered)
+        if row.created_at < cutoff or index >= keep_before_insert
+    }
+    if not stale_ids:
+        return 0
+    session.execute(delete(ScenarioResult).where(ScenarioResult.scenario_id.in_(stale_ids)))
+    session.execute(delete(ScenarioWeight).where(ScenarioWeight.scenario_id.in_(stale_ids)))
+    session.execute(delete(Scenario).where(Scenario.id.in_(stale_ids)))
+    return len(stale_ids)
+
+
+def get_cached_strategy(session: Session, cache_key: str, max_age_hours: int) -> dict | None:
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+        hours=max(0, max_age_hours)
+    )
+    row = session.scalar(
+        select(StrategyParse).where(
+            StrategyParse.cache_key == cache_key,
+            StrategyParse.created_at >= cutoff,
+        )
+    )
+    return json.loads(row.response_json) if row is not None else None
+
+
+def save_cached_strategy(
+    session: Session,
+    cache_key: str,
+    provider: str,
+    model: str,
+    description: str,
+    response: dict,
+) -> None:
+    prune_cached_strategies(session)
+    session.merge(
+        StrategyParse(
+            cache_key=cache_key,
+            provider=provider,
+            model=model,
+            description=description,
+            response_json=json.dumps(response),
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+    session.commit()
+
+
+def prune_cached_strategies(session: Session) -> int:
+    """Remove expired and excess LLM cache records before adding another."""
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+        hours=max(1, settings.strategy_cache_hours)
+    )
+    ordered = list(
+        session.scalars(select(StrategyParse).order_by(StrategyParse.created_at.desc()))
+    )
+    keep_before_insert = max(0, settings.strategy_cache_max_saved - 1)
+    stale_keys = {
+        row.cache_key
+        for index, row in enumerate(ordered)
+        if row.created_at < cutoff or index >= keep_before_insert
+    }
+    if stale_keys:
+        session.execute(delete(StrategyParse).where(StrategyParse.cache_key.in_(stale_keys)))
+    return len(stale_keys)
+
+
+def count_recent_strategy_parses(
+    session: Session, hours: int = 24, provider: str = "openai"
+) -> int:
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
+    statement = select(func.count()).select_from(StrategyParse).where(
+        StrategyParse.created_at >= cutoff,
+        StrategyParse.provider == provider,
+    )
+    return int(session.scalar(statement) or 0)
 
 
 def load_scenario(session: Session, scenario_id: str) -> tuple[Scenario, dict[str, float], list[ScenarioResult]]:

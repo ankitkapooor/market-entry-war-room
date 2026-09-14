@@ -64,6 +64,7 @@ export function StrategyScreen() {
         />
         <textarea
           rows={3}
+          maxLength={2000}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={EXAMPLES[0]}

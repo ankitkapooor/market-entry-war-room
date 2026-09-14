@@ -11,8 +11,10 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     create_engine,
+    event,
 )
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -76,7 +78,36 @@ class ScenarioResult(Base):
     metrics_json = Column(String, nullable=False, default="{}")
 
 
-engine = create_engine(settings.database_url, future=True)
+class StrategyParse(Base):
+    """Persistent cache for deterministic, temperature-zero strategy parses."""
+
+    __tablename__ = "strategy_parses"
+
+    cache_key = Column(String, primary_key=True)
+    provider = Column(String, nullable=False)
+    model = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    response_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+
+engine = create_engine(
+    settings.database_url,
+    future=True,
+    connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},
+)
+
+
+if settings.database_url.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def configure_sqlite(connection, _record) -> None:
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.close()
+
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, future=True)
 
 

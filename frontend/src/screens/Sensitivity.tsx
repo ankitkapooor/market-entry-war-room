@@ -76,7 +76,7 @@ export function SensitivityScreen() {
               onChange={(e) => setIterations(Number(e.target.value))}
               className="num"
             >
-              {[250, 1000, 5000, 20000].map((n) => (
+              {[250, 1000, 2500, 5000].map((n) => (
                 <option key={n} value={n}>
                   {n.toLocaleString()}
                 </option>

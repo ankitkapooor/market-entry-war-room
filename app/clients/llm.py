@@ -132,10 +132,11 @@ def parse_openai(description: str, timeout: float = 40.0) -> dict:
     """Structured-output call. Only used when OPENAI_API_KEY is set."""
     prompt = PROMPT_PATH.read_text().replace("{description}", description)
     payload = {
-        "model": "gpt-4o-mini",
+        "model": settings.llm_model,
         "messages": [{"role": "user", "content": prompt}],
         "response_format": {"type": "json_object"},
         "temperature": 0,
+        "max_tokens": 1000,
     }
     try:
         response = httpx.post(
@@ -146,6 +147,8 @@ def parse_openai(description: str, timeout: float = 40.0) -> dict:
         )
     except httpx.TimeoutException as exc:
         raise ExternalTimeout("LLM provider timed out") from exc
+    except httpx.HTTPError as exc:
+        raise LLMOutputError(f"LLM request failed: {exc}") from exc
 
     if response.status_code != 200:
         raise LLMOutputError(f"LLM provider returned {response.status_code}: {response.text[:200]}")

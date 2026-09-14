@@ -24,6 +24,13 @@ def test_health_reports_the_data_it_has(client):
     assert body["markets_with_data"] >= 50
 
 
+def test_deployment_health_and_root_redirect(client):
+    assert client.get("/health").json()["status"] == "ok"
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/ui/"
+
+
 def test_markets_listing_and_filtering(client):
     all_markets = client.get("/api/v1/markets").json()
     assert len(all_markets) >= 50
@@ -151,3 +158,23 @@ def test_metric_catalog_documents_direction(client):
 
 def test_unknown_metric_returns_404(client):
     assert client.get("/api/v1/data/metrics/not_a_metric").status_code == 404
+
+
+def test_strategy_parse_is_reused(client):
+    payload = {"description": "A premium fitness studio for customers aged 25 to 44."}
+    first = client.post("/api/v1/strategy/parse", json=payload)
+    second = client.post("/api/v1/strategy/parse", json=payload)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert second.headers["X-Strategy-Reused"] == "true"
+
+
+def test_public_payload_limits(client):
+    too_long = "x" * 2001
+    assert client.post("/api/v1/strategy/parse", json={"description": too_long}).status_code == 422
+    assert client.post("/api/v1/strategy/parse", json={"description": "   "}).status_code == 422
+    assert client.post(
+        "/api/v1/scenarios",
+        json={"business_strategy": {"description": too_long}},
+    ).status_code == 422

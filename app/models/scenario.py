@@ -12,8 +12,8 @@ class ScenarioRequest(BaseModel):
     business_strategy: BusinessStrategy = Field(default_factory=BusinessStrategy)
     # Omit to use the defaults from config/default_weights.yaml.
     weights: dict[str, float] | None = None
-    description: str = ""
-    limit: int | None = None
+    description: str = Field(default="", max_length=2000)
+    limit: int | None = Field(default=None, ge=2, le=500)
 
 
 class ScenarioResponse(BaseModel):
@@ -25,6 +25,6 @@ class ScenarioResponse(BaseModel):
 
 
 class SensitivityRequest(BaseModel):
-    iterations: int = Field(default=1000, ge=10, le=20000)
+    iterations: int = Field(default=1000, ge=10, le=5000)
     weight_variation: float = Field(default=0.25, gt=0.0, le=1.0)
     seed: int = 42

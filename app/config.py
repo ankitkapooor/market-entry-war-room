@@ -20,16 +20,46 @@ class Settings:
     """Environment-backed settings. Read once at import."""
 
     def __init__(self) -> None:
+        self.app_environment = os.getenv("APP_ENVIRONMENT", "development").strip().lower()
         self.census_api_key = os.getenv("CENSUS_API_KEY", "").strip()
         self.llm_provider = os.getenv("LLM_PROVIDER", "heuristic").strip().lower()
         self.openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        self.llm_model = os.getenv("LLM_MODEL", "gpt-4o-mini").strip()
         self.database_url = os.getenv("DATABASE_URL", "sqlite:///./data/app.db")
-        self.census_vintage = int(os.getenv("CENSUS_VINTAGE", "2023"))
-        self.census_prior_vintage = int(os.getenv("CENSUS_PRIOR_VINTAGE", "2018"))
+        self.census_vintage = int(os.getenv("CENSUS_VINTAGE", "2024"))
+        self.census_prior_vintage = int(os.getenv("CENSUS_PRIOR_VINTAGE", "2019"))
         self.sensitivity_iterations = int(os.getenv("SENSITIVITY_ITERATIONS", "1000"))
+        self.strategy_requests_per_hour = int(os.getenv("STRATEGY_REQUESTS_PER_HOUR", "10"))
+        self.strategy_daily_limit = int(os.getenv("STRATEGY_DAILY_LIMIT", "100"))
+        self.strategy_cache_hours = int(os.getenv("STRATEGY_CACHE_HOURS", "168"))
+        self.strategy_cache_max_saved = int(os.getenv("STRATEGY_CACHE_MAX_SAVED", "1000"))
+        self.scenario_requests_per_hour = int(os.getenv("SCENARIO_REQUESTS_PER_HOUR", "30"))
+        self.sensitivity_requests_per_hour = int(
+            os.getenv("SENSITIVITY_REQUESTS_PER_HOUR", "10")
+        )
+        self.scenario_retention_days = int(os.getenv("SCENARIO_RETENTION_DAYS", "7"))
+        self.scenario_max_saved = int(os.getenv("SCENARIO_MAX_SAVED", "100"))
 
 
 settings = Settings()
+
+
+def validate_runtime_configuration() -> None:
+    """Prevent a public deployment from silently using demo data or parsing."""
+    if settings.app_environment != "production":
+        return
+
+    errors: list[str] = []
+    if not settings.census_api_key:
+        errors.append("CENSUS_API_KEY is required")
+    if settings.llm_provider != "openai":
+        errors.append("LLM_PROVIDER must be openai")
+    if not settings.openai_api_key:
+        errors.append("OPENAI_API_KEY is required")
+    if not settings.llm_model:
+        errors.append("LLM_MODEL is required")
+    if errors:
+        raise RuntimeError("Invalid production configuration: " + "; ".join(errors))
 
 
 @lru_cache(maxsize=1)

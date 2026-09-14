@@ -7,8 +7,6 @@ else into the bottom of the scale.
 
 from __future__ import annotations
 
-from scipy.stats import rankdata
-
 from app.config import metric_direction
 
 
@@ -26,7 +24,20 @@ def percentile_scores(values: list[float | None]) -> list[float | None]:
         out[present[0][0]] = 50.0
         return out
 
-    ranks = rankdata([v for _, v in present], method="average")
+    # Average ranks for ties, implemented locally to avoid shipping SciPy just
+    # for this small operation. Ranks are one-based to match scipy.rankdata.
+    ordered = sorted(enumerate(v for _, v in present), key=lambda item: item[1])
+    ranks = [0.0] * len(present)
+    start = 0
+    while start < len(ordered):
+        end = start + 1
+        while end < len(ordered) and ordered[end][1] == ordered[start][1]:
+            end += 1
+        average_rank = ((start + 1) + end) / 2
+        for position in range(start, end):
+            ranks[ordered[position][0]] = average_rank
+        start = end
+
     span = len(present) - 1
     for (index, _), rank in zip(present, ranks):
         out[index] = float((rank - 1) / span * 100)

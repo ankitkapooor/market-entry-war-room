@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+.venv
+venv
+.pytest_cache
+**/__pycache__
+**/*.py[cod]
+*.egg-info
+data/app.db
+data/*.db-*
+frontend/node_modules
+frontend/dist
+frontend/tsconfig.tsbuildinfo
+tests
+Market Entry War Room — Backend Specification.md

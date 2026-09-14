@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from app.db.database import Base, get_session
 from app.db.repositories import replace_observations, upsert_market
 from app.main import app
+from app.rate_limit import request_limiter
 from scripts.seed_demo import SOURCE, build_rows
 
 
@@ -33,7 +34,11 @@ def seeded_session(session):
 
 
 @pytest.fixture
-def client(seeded_session):
+def client(seeded_session, monkeypatch):
+    # Lifespan initialization targets the configured application database; API
+    # tests instead use the isolated, already-seeded session below.
+    monkeypatch.setattr("app.main.ensure_market_data", lambda: None)
+    request_limiter.reset()
     app.dependency_overrides[get_session] = lambda: seeded_session
     with TestClient(app) as test_client:
         yield test_client

@@ -13,9 +13,12 @@ simulation tells you whether the winner actually survives different assumptions.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-python -m scripts.seed_demo          # loads the placeholder dataset
-uvicorn app.main:app --reload        # http://127.0.0.1:8000/docs
+uvicorn app.main:app --reload        # http://127.0.0.1:8000
 ```
+
+At startup, the app uses current persisted Census data, synchronizes it when a
+Census key is configured, or loads the clearly labeled development seed when
+neither is available.
 
 ### Web UI
 
@@ -25,7 +28,7 @@ same server as the API:
 ```bash
 cd frontend && npm install && npm run build && cd ..
 uvicorn app.main:app --reload
-# → http://127.0.0.1:8000/ui/
+# → http://127.0.0.1:8000 (redirects to /ui/)
 ```
 
 For development with hot reload:
@@ -61,17 +64,17 @@ is tagged `source: "synthetic_seed"` and the API shows that tag on every metric,
 so you can always tell. The rankings it produces are structurally correct but
 resting on approximations.
 
-For real data, get a free Census API key (issued instantly at
-<https://api.census.gov/data/key_signup.html>), put it in `.env`, and run:
+For real data, get a free Census API key at
+<https://api.census.gov/data/key_signup.html>, put it in `.env`, and run:
 
 ```bash
 python -m scripts.sync_census
 ```
 
-That pulls ACS 1-year data for every metro at two vintages so population and
-income growth are real deltas, then deletes the placeholder rows it supersedes,
-so the two sources can never mix. The Census API rejects keyless requests, which
-is why the placeholder dataset exists at all.
+That pulls the current configured ACS 1-year vintage (2024 by default) and 2019
+for a five-year comparison, then deletes the placeholder rows it supersedes, so
+the two sources can never mix. A production deployment performs this sync
+automatically when its persistent volume is empty.
 
 Set `LLM_PROVIDER=openai` with an `OPENAI_API_KEY` to use a model for parsing
 instead of the built-in keyword rules. Without it the heuristic parser handles
@@ -119,10 +122,9 @@ no Python edits required.
   plugging in County Business Patterns, Places or a commercial POI dataset.
 - **Median gross rent is residential**, used as a proxy for operating cost. It
   is not commercial rent and should not be read as storefront occupancy cost.
-- **Growth is a 5-year delta**, not a CAGR. ACS 1-year was never published for
-  2020, so the vintage pair is not contiguous. CBSA codes are also reissued
-  between vintages (Cleveland moved from 17460 to 17410), so 18 of the 393
-  metros have no 2018 counterpart. Their growth is recorded as missing and the
+- **Growth is a 5-year delta**, not a CAGR. CBSA codes are reissued between
+  vintages, so 16 of the 393 metros have no 2019 counterpart in the current
+  2024 dataset. Their growth is recorded as missing and the
   weight is redistributed; `sync_census` reports the count on every run.
 - **Metro areas only.** `geographic_scope: "state"` is rejected rather than
   silently approximated.
@@ -135,3 +137,10 @@ pytest
 
 Tests never call the Census API; `tests/fixtures/census_acs.py` holds canned
 responses shaped like the real thing and `respx` intercepts the HTTP calls.
+
+## Hosting
+
+Use one Railway service with the root `Dockerfile` and one volume mounted at
+`/app/data`. This keeps the React UI, FastAPI API, real Census snapshot and
+SQLite scenario store together at the lowest operational cost. Follow
+[DEPLOYMENT.md](DEPLOYMENT.md) for the exact variables and dashboard steps.

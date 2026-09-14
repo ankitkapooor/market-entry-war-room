@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from app.api import data, markets, scenarios
-from app.db.database import init_db
+from app.bootstrap import ensure_market_data
+from app.config import settings, validate_runtime_configuration
+from app.db.database import Observation, get_session
 from app.errors import WarRoomError
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
@@ -20,7 +23,8 @@ FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    init_db()
+    validate_runtime_configuration()
+    ensure_market_data()
     yield
 
 
@@ -45,6 +49,24 @@ app.add_middleware(
 app.include_router(markets.router, prefix="/api/v1")
 app.include_router(scenarios.router, prefix="/api/v1")
 app.include_router(data.router, prefix="/api/v1")
+
+
+@app.get("/", include_in_schema=False)
+def index() -> RedirectResponse:
+    return RedirectResponse("/ui/")
+
+
+@app.get("/health", include_in_schema=False)
+def deployment_health(session: Session = Depends(get_session)) -> dict:
+    current = session.scalar(
+        select(func.count())
+        .select_from(Observation)
+        .where(Observation.vintage == settings.census_vintage)
+    ) or 0
+    if current == 0:
+        raise HTTPException(status_code=503, detail="Current market data is not loaded")
+    return {"status": "ok", "census_vintage": settings.census_vintage}
+
 
 if FRONTEND_DIST.is_dir():
     app.mount("/ui", StaticFiles(directory=FRONTEND_DIST, html=True), name="ui")
