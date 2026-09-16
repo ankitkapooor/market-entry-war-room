@@ -2,7 +2,7 @@
  *
  * The map answers geographic questions the table cannot: whether the strategy
  * is pointing at one region or several, and how isolated the winner is. Circle
- * area is population, fill is attractiveness, so a large pale circle is a big
+ * area is population, fill is attractiveness, so a large muted circle is a big
  * market the strategy does not want.
  */
 
@@ -68,7 +68,7 @@ export function MarketMap() {
             <span className="num hint">100</span>
           </div>
           <div className="hint" style={{ marginTop: 6 }}>
-            Circle area is population, so a large pale circle is a big market this strategy
+            Circle area is population, so a large muted circle is a big market this strategy
             does not want.
           </div>
           {offFrame.length ? (

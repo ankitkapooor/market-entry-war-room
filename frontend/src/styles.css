@@ -1,28 +1,28 @@
 /* Market Entry War Room — drafting-table palette, hairline structure, no cards. */
 
 :root {
-  --paper: #e3e5e0;
-  --field: #f0f1ec;
-  --field-sunk: #dcded8;
-  --ink: #17181b;
-  --ink-soft: #43464a;
-  --muted: #6c6e6b;
-  --faint: #8e918c;
-  --rule: #cbccc4;
-  --rule-strong: #adafa6;
+  --paper: #021526;
+  --field: #08243b;
+  --field-sunk: #03346e;
+  --ink: #e2e2b6;
+  --ink-soft: #c1d0dc;
+  --muted: #a9bfd0;
+  --faint: #93aabd;
+  --rule: #25445d;
+  --rule-strong: #607d96;
 
-  --accent: #7a1b33;
-  --accent-wash: #7a1b3316;
-  --slate: #2f4858;
-  --slate-soft: #6b8394;
-  --ochre: #8a6a12;
+  --accent: #6eacda;
+  --accent-wash: #6eacda20;
+  --slate: #6eacda;
+  --slate-soft: #84a7c1;
+  --ochre: #e2e2b6;
 
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --rail-left: 286px;
   --rail-right: 340px;
-  --bar: 46px;
+  --bar: 58px;
 }
 
 * {
@@ -248,12 +248,12 @@ a {
 .btn-primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #f6f2f2;
+  color: var(--paper);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #5f142780;
-  background: #62142a;
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 .btn-primary:disabled {
@@ -436,7 +436,7 @@ tbody tr[aria-selected="true"] {
   gap: 9px;
   padding: 9px 12px;
   border-left: 2px solid var(--ochre);
-  background: #8a6a120d;
+  background: #e2e2b610;
   color: var(--ink-soft);
   font-size: 12px;
   line-height: 1.5;
@@ -685,4 +685,65 @@ tbody tr[aria-selected="true"] {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* Portfolio family; analytical layout and all control bindings are retained. */
+html { color-scheme: dark; }
+.project-family { flex: none; display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--rule); font: 10px var(--mono); letter-spacing: .08em; color: var(--muted); }
+.project-family a { color: var(--ink); text-decoration: none; font-size: 12px; }
+.project-family a span { color: var(--accent); margin-left: 8px; }
+.project-kicker { font: 10px var(--mono); color: var(--accent); letter-spacing: .12em; margin-bottom: 18px; }
+.topbar { background: var(--paper); border-color: var(--rule); }
+.wordmark { font-size: 15px; letter-spacing: -.035em; }
+.nav button { border-left: 0; font-size: 12px; }
+.nav button[aria-current="true"] { color: var(--accent); background: var(--field); }
+.strategy { padding-top: 48px; column-gap: 48px; }
+.strategy h1.big { font-size: clamp(36px, 3.8vw, 54px); letter-spacing: -.05em; line-height: 1.08; max-width: 18ch; font-weight: 600; }
+.strategy h1 + .note { font-size: 14px; line-height: 1.85; padding-block: 18px 12px; }
+.strategy .panel { border-radius: 4px; border-top: 2px solid var(--accent); }
+.strategy-aside { border-top: 2px solid var(--accent); padding-top: 20px; }
+.strategy > .stack > * + * { margin-top: 28px; }
+.btn { min-height: 40px; border-radius: 4px; }
+.btn-primary { background: var(--ink); border-color: var(--ink); }
+.btn-primary:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); }
+.btn-sm { min-height: 32px; }
+input[type="text"], input[type="number"], select { min-height: 38px; border-radius: 3px; }
+textarea { border-radius: 3px; padding: 12px; }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+input[type="range"] { height: 24px; }
+input[type="range"]::-webkit-slider-thumb { height: 18px; width: 6px; margin-top: -8px; border-radius: 2px; }
+input[type="range"]::-moz-range-thumb { height: 18px; width: 6px; border-radius: 2px; }
+.reading { padding-top: 40px; }
+.reading h1, .wide h1 { font-size: 32px; letter-spacing: -.04em; }
+.map-metro { stroke: var(--paper); }
+@media (max-width: 1180px) {
+ .warroom { height: auto; min-height: 100%; }
+ .warroom-center { grid-template-rows: 360px minmax(320px, auto); }
+ .warroom > .rail:last-child { display: flex; grid-column: 1 / -1; border-top: 1px solid var(--rule); }
+ .ranking-scroll { max-height: 480px; }
+ .map-side { flex-basis: 125px; width: 125px; }
+ .map-side-right { flex-basis: 95px; width: 95px; }
+}
+@media (max-width: 760px) {
+ .topbar { height: auto; flex-basis: auto; flex-wrap: wrap; }
+ .wordmark { height: 48px; border-right: 0; }
+ .topbar-scenario { display: none; }
+ .nav { width: 100%; overflow-x: auto; border-top: 1px solid var(--rule); }
+ .nav button { min-height: 44px; padding-inline: 14px; flex-shrink: 0; }
+ .strategy, .wide, .reading { padding: 28px 20px 48px; }
+ .strategy h1.big { font-size: 38px; }
+ .grid-2 { grid-template-columns: 1fr; }
+ .spread { flex-wrap: wrap; }
+ .warroom { display: flex; flex-direction: column; }
+ .warroom > .rail:first-child { border-right: 0; }
+ .warroom-center { display: block; }
+ .map-frame { display: grid; grid-template-columns: minmax(0, 1fr) 96px; height: auto; }
+ .map-side-left { grid-column: 1 / -1; width: auto; flex-direction: row; padding: 16px; border-bottom: 1px solid var(--rule); border-right: 0; gap: 24px; }
+ .map-side-left > div { flex: 1; }
+ .map-plot { height: 240px; }
+ .map-side-right { width: auto; }
+ .ranking { min-height: 300px; }
+ .rail { overflow: visible; }
+ .row { flex-wrap: wrap; }
+ .strategy-aside { margin-top: 36px; }
 }

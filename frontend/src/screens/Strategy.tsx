@@ -47,6 +47,7 @@ export function StrategyScreen() {
     <div className="strategy">
       <div className="stack">
       <div>
+        <p className="project-kicker">MARKET ENTRY / A QUESTION OF WHERE</p>
         <h1 className="big" style={{ marginBottom: 6 }}>
           Where should this business open next?
         </h1>

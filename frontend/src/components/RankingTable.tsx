@@ -149,7 +149,7 @@ export function RankingTable() {
                           background:
                             score === undefined
                               ? undefined
-                              : `rgba(47,72,88,${(score / 100) * (weighted ? 0.16 : 0.05)})`,
+                              : `rgba(110,172,218,${(score / 100) * (weighted ? 0.16 : 0.05)})`,
                           color:
                             score === undefined || !weighted
                               ? "var(--faint)"

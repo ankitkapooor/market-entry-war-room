@@ -178,7 +178,7 @@ export function CompareScreen() {
                           background:
                             score === undefined
                               ? undefined
-                              : `rgba(47,72,88,${(score / 100) * 0.1})`,
+                              : `rgba(110,172,218,${(score / 100) * 0.1})`,
                           fontWeight: score === top ? 600 : 400,
                           color: score === top ? "var(--ink)" : "var(--ink-soft)",
                         }}

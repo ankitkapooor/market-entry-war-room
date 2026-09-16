@@ -22,6 +22,7 @@ function Shell() {
 
   return (
     <div className="app">
+      <div className="project-family"><a href="https://ankitkapoor.me/#work">ankit.kapoor <span aria-hidden="true">↗</span></a><span>01 / GROWTH</span></div>
       <header className="topbar">
         <div className="wordmark">
           <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
@@ -75,7 +76,7 @@ function Shell() {
           style={{
             padding: "8px 16px",
             background: "var(--accent)",
-            color: "#f6f2f2",
+            color: "var(--paper)",
             borderBottom: "1px solid var(--rule-strong)",
           }}
           role="alert"

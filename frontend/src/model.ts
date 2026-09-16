@@ -180,11 +180,11 @@ export function shortName(name: string): string {
 
 export const stateOf = (name: string) => name.split(",")[1]?.trim().split(" ")[0] ?? "";
 
-/** Sequential slate ramp: pale at low attractiveness, deep at high. */
+/** Sequential blue ramp: muted at low attractiveness, bright at high. */
 export function scoreColor(score: number): string {
   const t = Math.max(0, Math.min(1, score / 100));
-  const from = [198, 203, 209];
-  const to = [47, 72, 88];
+  const from = [47, 72, 88];
+  const to = [110, 172, 218];
   const mix = from.map((c, i) => Math.round(c + (to[i] - c) * t ** 1.15));
   return `rgb(${mix.join(",")})`;
 }
