@@ -2,7 +2,24 @@
 
 import { FACTOR_MEANING, FACTOR_ORDER, factorLabel } from "../model";
 import { useStore } from "../store";
+import type { ReactNode } from "react";
 import { Caveat, SectionHeading } from "../components/Bits";
+import { useReveal } from "../ui";
+
+/** Slides into place the first time it scrolls into view. */
+function Reveal({ as = "div", children, delay = 0 }: {
+  as?: "div" | "li";
+  children: ReactNode;
+  delay?: number;
+}) {
+  const ref = useReveal<HTMLDivElement & HTMLLIElement>();
+  const Tag = as;
+  return (
+    <Tag ref={ref} className="reveal" style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </Tag>
+  );
+}
 
 const STAGES: [string, string][] = [
   ["Business description", "One sentence about what is being opened and for whom."],
@@ -27,10 +44,11 @@ export function MethodologyScreen() {
   const { catalog, health } = useStore();
 
   return (
-    <div className="reading stack">
+    <div className="reading stack doctrine">
       <div>
-        <h1 className="mid">Methodology</h1>
-        <p className="note">
+        <p className="kicker code">Doctrine · how the answer is made</p>
+        <h1 className="screen-title">Methodology</h1>
+        <p className="lede">
           The ranking is produced by an explicit model, not by a language model. A model is
           only worth as much as the reader's ability to audit it, so every stage is listed
           here with its inputs and its failure modes.
@@ -38,28 +56,16 @@ export function MethodologyScreen() {
       </div>
 
       <div>
-        <SectionHeading title="The pipeline" />
-        <ol style={{ margin: 0, padding: 0, listStyle: "none" }}>
+        <SectionHeading title="The pipeline" aside="each stage feeds the next" />
+        <ol className="chain">
           {STAGES.map(([stage, detail], i) => (
-            <li
-              key={stage}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "28px 1fr",
-                gap: 12,
-                padding: "9px 0",
-                borderTop: i === 0 ? "1px solid var(--rule)" : undefined,
-                borderBottom: "1px solid var(--rule)",
-              }}
-            >
-              <span className="num hint" style={{ paddingTop: 1 }}>
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span>
-                <span style={{ fontWeight: 500 }}>{stage}</span>
+            <Reveal as="li" key={stage} delay={i * 60}>
+              <span className="chain-node">{String(i + 1).padStart(2, "0")}</span>
+              <span style={{ paddingTop: 5 }}>
+                <span style={{ fontWeight: 600 }}>{stage}</span>
                 <div className="note">{detail}</div>
               </span>
-            </li>
+            </Reveal>
           ))}
         </ol>
       </div>
@@ -67,13 +73,25 @@ export function MethodologyScreen() {
       <div>
         <SectionHeading title="Terms" aside="these are not interchangeable" />
         <dl style={{ margin: 0 }}>
-          {DEFINITIONS.map(([term, meaning]) => (
-            <div key={term} style={{ padding: "8px 0", borderBottom: "1px solid var(--rule)" }}>
-              <dt style={{ fontWeight: 500 }}>{term}</dt>
-              <dd className="note" style={{ margin: "2px 0 0" }}>
-                {meaning}
-              </dd>
-            </div>
+          {DEFINITIONS.map(([term, meaning], i) => (
+            <Reveal key={term} delay={i * 40}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(140px, 180px) 1fr",
+                  gap: 16,
+                  padding: "10px 0",
+                  borderBottom: "1px solid var(--rule)",
+                }}
+              >
+                <dt className="code" style={{ color: "var(--red)", paddingTop: 3 }}>
+                  {term}
+                </dt>
+                <dd className="note" style={{ margin: 0 }}>
+                  {meaning}
+                </dd>
+              </div>
+            </Reveal>
           ))}
         </dl>
       </div>

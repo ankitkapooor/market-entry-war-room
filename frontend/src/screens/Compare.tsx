@@ -8,7 +8,8 @@ import { useMemo, useState } from "react";
 import type { ScoredMarket } from "../api";
 import { factorLabel, formatMetric, scoreColor, scoredFactors, shortName } from "../model";
 import { useStore } from "../store";
-import { SectionHeading } from "../components/Bits";
+import { Card, Empty, SectionTitle } from "../components/Bits";
+import { Count } from "../ui";
 
 const METRIC_ROWS: [string, string][] = [
   ["population", "Population"],
@@ -50,20 +51,18 @@ export function CompareScreen() {
 
   if (!markets.length) {
     return (
-      <div className="reading stack">
-        <h1 className="mid">Nothing to compare yet.</h1>
+      <Empty code="Board is empty" title="Nothing to compare yet.">
         <button className="btn btn-primary" onClick={() => go("strategy")}>
           Go to strategy
         </button>
-      </div>
+      </Empty>
     );
   }
 
   if (selected.length < 2) {
     return (
-      <div className="reading stack">
-        <h1 className="mid">Pin at least two markets.</h1>
-        <p className="note">
+      <Empty code={`${pinned.length} of 2 pinned`} title="Pin at least two markets.">
+        <p className="note" style={{ marginBottom: 18 }}>
           Pin them from the ranking in the war room, or start with the current top four.
         </p>
         <div className="row">
@@ -78,7 +77,7 @@ export function CompareScreen() {
             Back to the ranking
           </button>
         </div>
-      </div>
+      </Empty>
     );
   }
 
@@ -95,10 +94,11 @@ export function CompareScreen() {
 
   return (
     <div className="wide stack">
-      <div className="spread">
+      <div className="spread" style={{ alignItems: "flex-end" }}>
         <div>
-          <h1 className="mid">Comparison</h1>
-          <p className="note">
+          <p className="kicker code">Head to head · {selected.length} targets</p>
+          <h1 className="screen-title">Comparison</h1>
+          <p className="lede" style={{ marginTop: 18, fontSize: 14, padding: "12px 18px" }}>
             Factor scores are percentiles across all {markets.length} metros. Raw values are
             the observations behind them.
           </p>
@@ -109,7 +109,8 @@ export function CompareScreen() {
       </div>
 
       {/* Capped: columns of figures are only comparable if they sit close together. */}
-      <div className="panel" style={{ overflowX: "auto", maxWidth: 1020 }}>
+      <Card pin="tape" i={1} style={{ maxWidth: 1100 }}>
+      <div style={{ overflowX: "auto" }}>
         <table>
           <thead>
             <tr>
@@ -117,11 +118,14 @@ export function CompareScreen() {
                 Measure
               </th>
               {selected.map((market) => (
-                <th key={market.market_id} scope="col" style={{ minWidth: 130 }}>
-                  <div style={{ fontWeight: 600, color: "var(--ink)" }}>
+                <th key={market.market_id} scope="col" style={{ minWidth: 140, paddingBlock: 12 }}>
+                  <span className={`token ${market.rank === 1 ? "token-1" : ""}`}>{market.rank}</span>
+                  <div
+                    className="stencil"
+                    style={{ fontSize: 24, lineHeight: 1, color: "var(--ink)", letterSpacing: "0.01em", marginTop: 6 }}
+                  >
                     {shortName(market.name)}
                   </div>
-                  <div className="hint num">rank {market.rank}</div>
                 </th>
               ))}
             </tr>
@@ -136,21 +140,21 @@ export function CompareScreen() {
                   key={market.market_id}
                   className="num"
                   style={{
-                    fontWeight: 600,
-                    fontSize: 15,
+                    fontWeight: 500,
+                    fontSize: 22,
                     color:
                       market.score === best(selected.map((m) => m.score))
-                        ? "var(--accent)"
+                        ? "var(--amber)"
                         : undefined,
                   }}
                 >
-                  {market.score.toFixed(1)}
+                  <Count value={market.score} format={(n) => n.toFixed(1)} />
                 </td>
               ))}
             </tr>
 
             <tr>
-              <td className="left label" colSpan={selected.length + 1} style={{ paddingTop: 14 }}>
+              <td className="left code" colSpan={selected.length + 1} style={{ paddingTop: 18, color: "var(--amber)" }}>
                 Factor scores · percentile, 0–100
               </td>
             </tr>
@@ -178,11 +182,14 @@ export function CompareScreen() {
                           background:
                             score === undefined
                               ? undefined
-                              : `rgba(110,172,218,${(score / 100) * 0.1})`,
+                              : `rgba(184,50,42,${(score / 100) ** 1.8 * 0.14})`,
                           fontWeight: score === top ? 600 : 400,
                           color: score === top ? "var(--ink)" : "var(--ink-soft)",
                         }}
                       >
+                        {score === top && score !== undefined ? (
+                          <span style={{ color: "var(--amber)", fontSize: 9, marginRight: 6 }}>▲</span>
+                        ) : null}
                         {score === undefined ? "—" : score.toFixed(0)}
                       </td>
                     );
@@ -192,8 +199,8 @@ export function CompareScreen() {
             })}
 
             <tr>
-              <td className="left label" colSpan={selected.length + 1} style={{ paddingTop: 14 }}>
-                Raw values · as observed
+              <td className="left code" colSpan={selected.length + 1} style={{ paddingTop: 18, color: "var(--amber)" }}>
+                Field evidence · as observed
               </td>
             </tr>
             {METRIC_ROWS.map(([metric, label]) => (
@@ -209,42 +216,43 @@ export function CompareScreen() {
           </tbody>
         </table>
       </div>
+      </Card>
 
-      <div>
-        <SectionHeading title="What each choice trades away" aside="gaps of 5 points or more" />
+      <div style={{ paddingTop: 12 }}>
+        <SectionTitle title="What each choice trades away" aside="Gaps of five points or more." />
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 1,
-            background: "var(--rule)",
-            border: "1px solid var(--rule)",
+            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+            gap: 26,
           }}
         >
-          {pairs.map(([a, b]) => {
+          {pairs.map(([a, b], i) => {
             const trades = tradeOffs(a, b);
             return (
               <div
                 key={`${a.market_id}-${b.market_id}`}
-                style={{ background: "var(--field)", padding: "12px 14px" }}
+                className={`sticky ${i % 3 === 1 ? "sticky-blue" : i % 3 === 2 ? "sticky-paper" : ""}`}
+                style={{ ["--i" as string]: i, ["--tilt" as string]: `${[-1.6, 1.2, -0.6, 1.8, -1.1, 0.7][i % 6]}deg` }}
               >
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>
-                  {shortName(a.name)} vs {shortName(b.name)}
+                <div className="marker" style={{ fontSize: 19, marginBottom: 10 }}>
+                  {shortName(a.name)} <span style={{ color: "var(--red)" }}>vs</span>{" "}
+                  {shortName(b.name)}
                 </div>
                 {trades.length === 0 ? (
-                  <div className="hint">
+                  <div className="hint" style={{ color: "var(--ink-soft)" }}>
                     No factor separates these two by more than five points. On this strategy
                     they are substitutes.
                   </div>
                 ) : (
                   trades.map((trade) => (
                     <div key={trade.factor} className="spread" style={{ padding: "2px 0" }}>
-                      <span className="note">{factorLabel(trade.factor)}</span>
+                      <span className="note" style={{ color: "var(--ink-soft)" }}>{factorLabel(trade.factor)}</span>
                       <span>
-                        <span className="num" style={{ color: "var(--slate)" }}>
+                        <span className="num" style={{ color: "var(--red)", fontWeight: 600 }}>
                           +{trade.difference.toFixed(0)}
                         </span>{" "}
-                        <span className="hint">{shortName(trade.favors)}</span>
+                        <span className="hint" style={{ color: "var(--ink-soft)" }}>{shortName(trade.favors)}</span>
                       </span>
                     </div>
                   ))
@@ -277,12 +285,8 @@ function TradeoffPlot({ pinned }: { pinned: ScoredMarket[] }) {
 
   return (
     <div>
-      <SectionHeading
-        title="Trade-off plot"
-        aside="every metro; pinned markets labelled"
-      />
-      <div className="panel" style={{ padding: "12px 14px" }}>
-        <div className="row" style={{ marginBottom: 8 }}>
+      <Card title="Trade-off plot" aside="every metro; pinned markets labelled" pin="blue" style={{ maxWidth: 1100 }}>
+        <div className="row" style={{ marginBottom: 14 }}>
           <span className="hint">Horizontal</span>
           <select value={x} onChange={(e) => setX(e.target.value)} style={{ width: 150 }}>
             {factors.map((f) => (
@@ -301,7 +305,7 @@ function TradeoffPlot({ pinned }: { pinned: ScoredMarket[] }) {
           </select>
         </div>
 
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="graph-paper" style={{ width: "100%", height: "auto" }}>
           {[0, 25, 50, 75, 100].map((tick) => (
             <g key={tick}>
               <line
@@ -329,19 +333,21 @@ function TradeoffPlot({ pinned }: { pinned: ScoredMarket[] }) {
             </g>
           ))}
 
+          {/* Each dot is positioned by a CSS transform, so changing an axis
+              glides every metro to its new place instead of redrawing. */}
           {markets.map((market) => {
             const mx = market.factor_scores[x];
             const my = market.factor_scores[y];
             if (mx === undefined || my === undefined) return null;
-            const isPinned = pinnedIds.has(market.market_id);
+            if (pinnedIds.has(market.market_id)) return null;
             return (
               <circle
                 key={market.market_id}
-                cx={px(mx)}
-                cy={py(my)}
-                r={isPinned ? 5 : 2.2}
-                fill={isPinned ? "var(--accent)" : scoreColor(market.score)}
-                opacity={isPinned ? 1 : 0.45}
+                className="dot-move"
+                r={2.3}
+                fill={scoreColor(market.score)}
+                opacity={0.8}
+                style={{ transform: `translate(${px(mx)}px, ${py(my)}px)` }}
               >
                 <title>{`${market.name} — ${factorLabel(x)} ${mx.toFixed(0)}, ${factorLabel(y)} ${my.toFixed(0)}`}</title>
               </circle>
@@ -353,30 +359,41 @@ function TradeoffPlot({ pinned }: { pinned: ScoredMarket[] }) {
             const my = market.factor_scores[y];
             if (mx === undefined || my === undefined) return null;
             return (
-              <text
+              <g
                 key={market.market_id}
-                x={px(mx) + 8}
-                y={py(my) + 3}
-                fontSize={11}
-                fontWeight={500}
-                fill="var(--ink)"
-                stroke="var(--field)"
-                strokeWidth={3}
-                paintOrder="stroke"
+                className="dot-move"
+                style={{ transform: `translate(${px(mx)}px, ${py(my)}px)` }}
               >
-                {shortName(market.name)}
-              </text>
+                <ellipse cx={3} cy={4} rx={7} ry={4.5} fill="rgba(60,38,14,.25)" />
+                <circle r={7} fill="var(--red)" stroke="var(--red-deep)" strokeWidth={1} />
+                <circle cx={-2.2} cy={-2.4} r={2.2} fill="rgba(255,255,255,.55)" />
+                <text
+                  x={px(mx) > W - 170 ? -13 : 13}
+                  textAnchor={px(mx) > W - 170 ? "end" : "start"}
+                  y={4}
+                  fontSize={11}
+                  fontWeight={500}
+                  fill="var(--ink)"
+                  stroke="#fbf8ef"
+                  strokeWidth={3.5}
+                  paintOrder="stroke"
+                  style={{ fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: "0.05em" }}
+                >
+                  {shortName(market.name)}
+                </text>
+                <title>{`${market.name} — ${factorLabel(x)} ${mx.toFixed(0)}, ${factorLabel(y)} ${my.toFixed(0)}`}</title>
+              </g>
             );
           })}
 
-          <text x={W - pad.right} y={H - 6} textAnchor="end" fontSize={11} fill="var(--muted)">
-            {factorLabel(x)} →
+          <text x={W - pad.right} y={H - 6} textAnchor="end" fontSize={10} fill="var(--amber)" className="num">
+            {factorLabel(x).toUpperCase()} →
           </text>
-          <text x={12} y={pad.top + 4} fontSize={11} fill="var(--muted)">
-            ↑ {factorLabel(y)}
+          <text x={pad.left + 8} y={pad.top + 12} fontSize={10} fill="var(--amber)" className="num">
+            ↑ {factorLabel(y).toUpperCase()}
           </text>
         </svg>
-      </div>
+      </Card>
     </div>
   );
 }

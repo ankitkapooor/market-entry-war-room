@@ -1,24 +1,37 @@
-/** The ranking. Dense and sortable, one row per market — not one card per market.
+/** The ranking. Sortable, one row per market — not one card per market.
  *
  * Factor cells are tinted by score so a strength or a hole is visible while
- * scanning, without reading every number.
+ * scanning. When a weight moves, rows slide to their new places and the
+ * movement column says how far each market has climbed or fallen against the
+ * scenario the server last scored.
  */
 
-import { useMemo, useState } from "react";
-import { factorLabel, scoredFactors, shortName, stateOf } from "../model";
+import { useMemo, useRef, useState } from "react";
+import { factorColor, factorLabel, scoredFactors, shortName, stateOf } from "../model";
 import { useStore } from "../store";
+import { useFlip } from "../ui";
+import { Card } from "./Bits";
 
 type SortKey = "rank" | "name" | string;
 
 export function RankingTable() {
-  const { markets, effective, selected, select, pinned, togglePin } = useStore();
+  const { markets, effective, selected, select, pinned, togglePin, scenario } = useStore();
   const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({
     key: "rank",
     descending: false,
   });
   const [query, setQuery] = useState("");
+  const scroller = useRef<HTMLDivElement>(null);
+  // Only the rows on screen when the table first opens arrive in sequence;
+  // later re-ranks are carried by the slide instead.
+  const [entering] = useState(() => new Set(markets.slice(0, 14).map((m) => m.market_id)));
 
   const factors = scoredFactors(markets);
+
+  const baseRank = useMemo(
+    () => new Map(scenario?.markets.map((m) => [m.market_id, m.rank]) ?? []),
+    [scenario]
+  );
 
   const rows = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -30,6 +43,8 @@ export function RankingTable() {
     });
     return sort.descending ? sorted.reverse() : sorted;
   }, [markets, query, sort]);
+
+  useFlip(scroller, rows.map((m) => m.market_id).join(","));
 
   const toggleSort = (key: SortKey) =>
     setSort((current) =>
@@ -43,97 +58,115 @@ export function RankingTable() {
     weight?: number
   ) => (
     <th
-      key={key}
+      key={label}
       className={align === "left" ? "left" : undefined}
       aria-sort={sort.key === key ? (sort.descending ? "ascending" : "descending") : undefined}
       scope="col"
     >
       <button onClick={() => toggleSort(key)}>{label}</button>
       {weight !== undefined ? (
-        <div className="num hint" style={{ fontWeight: 400 }}>
-          {weight > 0 ? `${(weight * 100).toFixed(0)}%` : "unweighted"}
+        <div
+          className="num"
+          style={{ color: weight > 0 ? "var(--ink-soft)" : "var(--faint)", letterSpacing: 0, marginTop: 3 }}
+        >
+          {weight > 0 ? `${(weight * 100).toFixed(0)}%` : "—"}
         </div>
       ) : null}
     </th>
   );
 
   return (
-    <div className="ranking">
-      <div
-        className="row"
-        style={{ padding: "8px 12px", borderBottom: "1px solid var(--rule)", gap: 12 }}
-      >
-        <span className="label" style={{ color: "var(--ink)", fontWeight: 600 }}>
-          Ranking
-        </span>
-        <span className="hint num">
-          {rows.length} of {markets.length} metros
-        </span>
-        <div style={{ flex: 1 }} />
-        <span className="hint">
-          {pinned.length ? `${pinned.length} of 4 pinned to compare` : "Pin up to 4 to compare"}
+    <Card
+      title="Order of battle"
+      aside={`${rows.length} of ${markets.length} metros`}
+      pin="red"
+      i={4}
+    >
+      <div className="ranking-bar" style={{ marginBottom: 16 }}>
+        <span className="hint" style={{ flex: 1 }}>
+          Drag a weight or play a card and watch the order change. ▲ and ▼ count places
+          gained or lost since the last run.{" "}
+          {pinned.length ? `${pinned.length} of 4 pinned to compare.` : "Pin up to four to compare."}
         </span>
         <input
           type="text"
           value={query}
-          placeholder="Filter markets"
+          placeholder="Find a market"
           onChange={(e) => setQuery(e.target.value)}
-          style={{ width: 180 }}
+          style={{ width: 220 }}
           aria-label="Filter markets by name"
         />
       </div>
 
-      <div className="ranking-scroll">
+      <div className="ranking-scroll" ref={scroller}>
         <table>
           <thead>
             <tr>
               {header("rank", "#")}
-              {header("name", "Market", "left")}
-              <th className="left" scope="col">
-                State
+              <th scope="col" title="Places moved since the last server run">
+                Moved
               </th>
+              {header("name", "Market", "left")}
               {header("rank", "Score")}
-              <th scope="col" style={{ width: 74 }} />
+              <th scope="col" style={{ width: 96 }} />
               {factors.map((factor) =>
                 header(factor, factorLabel(factor), "right", effective[factor] ?? 0)
               )}
-              <th scope="col" style={{ width: 34 }} />
+              <th scope="col" style={{ width: 52 }}>
+                Pin
+              </th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((market) => {
+            {rows.map((market, i) => {
               const isSelected = market.market_id === selected;
               const isPinned = pinned.includes(market.market_id);
+              const moved = (baseRank.get(market.market_id) ?? market.rank) - market.rank;
               return (
                 <tr
                   key={market.market_id}
+                  data-flip={market.market_id}
                   aria-selected={isSelected}
                   onClick={() => select(market.market_id)}
-                  style={{ cursor: "pointer" }}
+                  className={entering.has(market.market_id) ? "rise" : undefined}
+                  style={{ cursor: "pointer", ["--i" as string]: i + 4 }}
                 >
-                  <td
-                    className="num"
-                    style={{
-                      color: market.rank === 1 ? "var(--accent)" : "var(--muted)",
-                      fontWeight: market.rank === 1 ? 600 : 400,
-                    }}
-                  >
-                    {market.rank}
+                  <td>
+                    <span
+                      className={`token ${market.rank === 1 ? "token-1" : market.rank <= 5 ? "token-top" : ""}`}
+                    >
+                      {market.rank}
+                    </span>
                   </td>
-                  <td className="left" style={{ fontWeight: isSelected ? 600 : 400 }}>
-                    {shortName(market.name)}
+                  <td className="num">
+                    {moved !== 0 ? (
+                      <span className={`delta ${moved > 0 ? "delta-up" : "delta-down"}`}>
+                        {moved > 0 ? "▲" : "▼"}
+                        {Math.abs(moved)}
+                      </span>
+                    ) : (
+                      <span className="delta" style={{ color: "var(--line-strong)" }}>
+                        –
+                      </span>
+                    )}
                   </td>
-                  <td className="left num hint">{stateOf(market.name)}</td>
-                  <td className="num" style={{ fontWeight: 500 }}>
+                  <td className="left">
+                    <span style={{ fontWeight: isSelected ? 600 : 500 }}>{shortName(market.name)}</span>{" "}
+                    <span className="hint num" style={{ marginLeft: 4 }}>
+                      {stateOf(market.name)}
+                    </span>
+                  </td>
+                  <td className="num" style={{ fontWeight: 600, fontSize: 15, color: isSelected ? "var(--red)" : undefined }}>
                     {market.score.toFixed(1)}
                   </td>
                   <td>
-                    <div className="bar-track" style={{ height: 5 }}>
+                    <div className="bar-track" style={{ height: 6 }}>
                       <div
                         className="bar-fill"
                         style={{
                           width: `${market.score}%`,
-                          background: isSelected ? "var(--accent)" : "var(--slate-soft)",
+                          background: isSelected || market.rank === 1 ? "var(--red)" : "var(--ink-soft)",
+                          animationDelay: `${Math.min(i, 14) * 40 + 200}ms`,
                         }}
                       />
                     </div>
@@ -145,16 +178,7 @@ export function RankingTable() {
                       <td
                         key={factor}
                         className="num"
-                        style={{
-                          background:
-                            score === undefined
-                              ? undefined
-                              : `rgba(110,172,218,${(score / 100) * (weighted ? 0.16 : 0.05)})`,
-                          color:
-                            score === undefined || !weighted
-                              ? "var(--faint)"
-                              : "var(--ink-soft)",
-                        }}
+                        style={{ color: score === undefined || !weighted ? "var(--faint)" : "var(--ink)" }}
                         title={
                           score === undefined
                             ? "No data for this factor"
@@ -163,27 +187,38 @@ export function RankingTable() {
                               : "Scored, but this factor carries no weight"
                         }
                       >
-                        {score === undefined ? "—" : score.toFixed(0)}
+                        {score === undefined ? (
+                          "—"
+                        ) : (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+                            <span
+                              aria-hidden="true"
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                background: weighted ? factorColor(factor) : "var(--line-strong)",
+                                opacity: 0.15 + (score / 100) ** 1.4 * 0.85,
+                              }}
+                            />
+                            {score.toFixed(0)}
+                          </span>
+                        )}
                       </td>
                     );
                   })}
                   <td>
                     <button
-                      className="btn btn-sm"
+                      className="pin-btn"
                       onClick={(e) => {
                         e.stopPropagation();
                         togglePin(market.market_id);
                       }}
-                      style={{
-                        padding: "0 5px",
-                        borderColor: isPinned ? "var(--accent)" : "var(--rule)",
-                        color: isPinned ? "var(--accent)" : "var(--faint)",
-                        background: "transparent",
-                      }}
                       title={isPinned ? "Unpin from comparison" : "Pin to comparison"}
                       aria-pressed={isPinned}
+                      aria-label={`${isPinned ? "Unpin" : "Pin"} ${shortName(market.name)}`}
                     >
-                      {isPinned ? "■" : "□"}
+                      +
                     </button>
                   </td>
                 </tr>
@@ -192,6 +227,6 @@ export function RankingTable() {
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }

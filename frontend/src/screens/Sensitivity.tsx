@@ -9,7 +9,8 @@
 import { useState } from "react";
 import { factorLabel, pct, shortName } from "../model";
 import { useStore } from "../store";
-import { Caveat, SectionHeading } from "../components/Bits";
+import { Card, Caveat, Empty } from "../components/Bits";
+import { Count, Dice } from "../ui";
 import type { MarketSensitivity } from "../api";
 
 const SHOWN = 15;
@@ -21,12 +22,11 @@ export function SensitivityScreen() {
 
   if (!markets.length) {
     return (
-      <div className="reading stack">
-        <h1 className="mid">Run a scenario first.</h1>
+      <Empty code="Board is empty" title="Run a scenario first.">
         <button className="btn btn-primary" onClick={() => go("strategy")}>
           Go to strategy
         </button>
-      </div>
+      </Empty>
     );
   }
 
@@ -37,21 +37,25 @@ export function SensitivityScreen() {
 
   return (
     <div className="wide stack">
-      <div style={{ maxWidth: 720 }}>
-        <h1 className="mid">Would this still be the answer if the assumptions moved?</h1>
-        <p className="note">
+      <div style={{ maxWidth: 820 }}>
+        <p className="kicker code">Stress test · Monte Carlo war game</p>
+        <h1 className="screen-title">Would this still be the answer if the assumptions moved?</h1>
+        <p className="lede" style={{ maxWidth: 720 }}>
           Each simulation multiplies every weight by a random factor inside the band below,
           renormalises to 100%, and re-ranks all {markets.length} metros. A market that holds
           its position across the band is a decision; one that does not is a coin toss.
         </p>
       </div>
 
-      <div className="panel" style={{ padding: "14px 16px" }}>
-        <div className="row" style={{ flexWrap: "wrap", gap: 24 }}>
+      <Card pin="tape" i={1}>
+        <div className="row" style={{ flexWrap: "wrap", gap: 32 }}>
+          <Dice rolling={simulating} />
           <div style={{ minWidth: 230 }}>
             <div className="spread">
-              <span className="label">Weight variation</span>
-              <span className="num">±{(variation * 100).toFixed(0)}%</span>
+              <span className="code" style={{ color: "var(--muted)" }}>Weight variation</span>
+              <span className="num" style={{ color: "var(--amber)", fontSize: 16 }}>
+                ±{(variation * 100).toFixed(0)}%
+              </span>
             </div>
             <input
               type="range"
@@ -61,6 +65,7 @@ export function SensitivityScreen() {
               value={variation * 100}
               onChange={(e) => setVariation(Number(e.target.value) / 100)}
               aria-label="Weight variation"
+              style={{ ["--fill" as string]: `${((variation * 100 - 5) / 95) * 100}%` }}
             />
             <div className="hint">
               How far each weight is allowed to drift from the current setting.
@@ -68,7 +73,7 @@ export function SensitivityScreen() {
           </div>
 
           <div style={{ minWidth: 170 }}>
-            <div className="label" style={{ marginBottom: 4 }}>
+            <div className="code" style={{ color: "var(--muted)", marginBottom: 6 }}>
               Simulations
             </div>
             <select
@@ -90,19 +95,21 @@ export function SensitivityScreen() {
             className="btn btn-primary"
             onClick={() => simulate(iterations, variation)}
             disabled={simulating}
+            data-busy={simulating}
+            style={{ minHeight: 46, paddingInline: 22 }}
           >
             {simulating ? "Simulating…" : sensitivity ? "Run again" : "Run the simulation"}
           </button>
         </div>
 
-        <div className="hint" style={{ marginTop: 10 }}>
+        <div className="hint" style={{ marginTop: 16 }}>
           Perturbing{" "}
           <span className="num">
             {Object.keys(effective).map(factorLabel).join(", ").toLowerCase()}
           </span>
           . {scenario ? `Scenario ${scenario.scenario_id}.` : ""}
         </div>
-      </div>
+      </Card>
 
       {outdated ? (
         <Caveat>
@@ -111,36 +118,65 @@ export function SensitivityScreen() {
         </Caveat>
       ) : null}
 
+      {simulating ? (
+        <div className="sticky" style={{ maxWidth: 420, ["--tilt" as string]: "-1deg" }}>
+          <span className="code">Rolling</span>
+          <span className="marker" style={{ fontSize: 22 }}>
+            {iterations.toLocaleString()} war games…
+          </span>
+          <span className="hint" style={{ color: "var(--ink-soft)" }}>
+            Re-ranking all {markets.length} metros under each weighting.
+          </span>
+        </div>
+      ) : null}
+
       {!sensitivity ? (
-        <p className="note">
-          Nothing has been simulated yet. The ranking on its own tells you what wins; this
-          tells you whether the win means anything.
-        </p>
+        simulating ? null : (
+          <div className="sticky sticky-paper" style={{ maxWidth: 460, ["--tilt" as string]: "1deg" }}>
+            <span className="code">Not yet played</span>
+            <p style={{ fontSize: 14, lineHeight: 1.6 }}>
+              The ranking on its own tells you what wins; this tells you whether the win
+              means anything. Roll the dice.
+            </p>
+          </div>
+        )
       ) : (
-        <>
+        <div key={`${sensitivity.scenario_id}-${sensitivity.iterations}-${sensitivity.weight_variation}`} className="stack">
           {leader ? (
-            <div className="panel" style={{ padding: "16px 18px" }}>
-              <div className="row" style={{ gap: 32, flexWrap: "wrap", alignItems: "baseline" }}>
-                <div>
-                  <div className="big">{shortName(leader.name)}</div>
+            <Card pin="red" i={0}>
+              <div className="row" style={{ gap: 26, flexWrap: "wrap", alignItems: "center" }}>
+                <SurvivalRing value={leader.top_3_probability} />
+                <div style={{ minWidth: 200 }}>
+                  <div className="code" style={{ color: "var(--faint)" }}>
+                    Survives the war game
+                  </div>
+                  <div className="stencil" style={{ fontSize: 48, lineHeight: 0.92, color: "var(--ink)", marginTop: 6 }}>
+                    {shortName(leader.name)}
+                  </div>
                   <div className="hint">lowest mean rank across the band</div>
                 </div>
-                <div>
-                  <div className="big num">{pct(leader.top_3_probability)}</div>
-                  <div className="hint">finishes in the top 3</div>
-                </div>
-                <div>
-                  <div className="big num">
-                    {leader.rank_p10.toFixed(0)}–{leader.rank_p90.toFixed(0)}
+                <div className="readouts" style={{ flex: 1, minWidth: 280 }}>
+                  <div>
+                    <span className="big num">
+                      <Count value={leader.top_3_probability * 100} format={(n) => `${n.toFixed(0)}%`} />
+                    </span>
+                    <span className="code">Finishes top 3</span>
                   </div>
-                  <div className="hint">rank in the middle 80% of runs</div>
-                </div>
-                <div>
-                  <div className="big num">{leader.mean_rank.toFixed(2)}</div>
-                  <div className="hint">mean rank</div>
+                  <div>
+                    <span className="big num">
+                      {leader.rank_p10.toFixed(0)}–{leader.rank_p90.toFixed(0)}
+                    </span>
+                    <span className="code">Middle 80% of runs</span>
+                  </div>
+                  <div>
+                    <span className="big num">
+                      <Count value={leader.mean_rank} format={(n) => n.toFixed(2)} />
+                    </span>
+                    <span className="code">Mean rank</span>
+                  </div>
                 </div>
               </div>
-              <p className="note" style={{ marginTop: 12, maxWidth: 760 }}>
+              <p className="note" style={{ marginTop: 18, maxWidth: 760 }}>
                 Across{" "}
                 <span className="num">{sensitivity.iterations.toLocaleString()}</span> weightings
                 drawn within ±{pct(sensitivity.weight_variation)} of the current assumptions,{" "}
@@ -150,22 +186,20 @@ export function SensitivityScreen() {
                   ? "Its rank never moved, so the choice does not hinge on the weights."
                   : `Its rank varied by ${leader.rank_std.toFixed(2)} on average, so the choice is stable but not fixed.`}
               </p>
-            </div>
+            </Card>
           ) : null}
 
-          <div>
-            <SectionHeading
-              title="Rank interval"
-              aside={`10th to 90th percentile across ${sensitivity.iterations.toLocaleString()} runs`}
-            />
-            <div className="panel" style={{ padding: "12px 16px" }}>
-              <RankIntervals rows={rows} worstRank={worstRank} />
-            </div>
-          </div>
+          <Card
+            title="Rank interval"
+            aside={`10th to 90th percentile across ${sensitivity.iterations.toLocaleString()} runs`}
+            pin="tape"
+            i={1}
+          >
+            <RankIntervals rows={rows} worstRank={worstRank} />
+          </Card>
 
-          <div>
-            <SectionHeading title="Robustness and movement" aside="against the current ranking" />
-            <div className="panel">
+          <Card title="Robustness and movement" aside="against the current ranking" pin="blue" i={2}>
+            <div style={{ overflowX: "auto" }}>
               <table>
                 <thead>
                   <tr>
@@ -182,11 +216,11 @@ export function SensitivityScreen() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row) => {
+                  {rows.map((row, i) => {
                     const drift = row.mean_rank - row.base_rank;
                     return (
-                      <tr key={row.market_id}>
-                        <td className="left">{shortName(row.name)}</td>
+                      <tr key={row.market_id} className="rise" style={{ ["--i" as string]: i }}>
+                        <td className="left" style={{ fontWeight: 500 }}>{shortName(row.name)}</td>
                         <td className="num">{row.base_rank}</td>
                         <td className="num">{row.mean_rank.toFixed(2)}</td>
                         <td
@@ -196,8 +230,8 @@ export function SensitivityScreen() {
                               Math.abs(drift) < 0.5
                                 ? "var(--faint)"
                                 : drift < 0
-                                  ? "var(--slate)"
-                                  : "var(--accent)",
+                                  ? "var(--phosphor)"
+                                  : "var(--red)",
                           }}
                         >
                           {Math.abs(drift) < 0.005
@@ -212,7 +246,8 @@ export function SensitivityScreen() {
                               className="bar-fill"
                               style={{
                                 width: `${row.top_3_probability * 100}%`,
-                                background: "var(--slate)",
+                                background: i === 0 ? "var(--red)" : "var(--ink-soft)",
+                                animationDelay: `${i * 40}ms`,
                               }}
                             />
                           </div>
@@ -224,12 +259,12 @@ export function SensitivityScreen() {
                 </tbody>
               </table>
             </div>
-            <p className="hint" style={{ marginTop: 8 }}>
+            <p className="hint" style={{ marginTop: 14 }}>
               Movement is mean rank minus the rank under the current weights. A market that
               drifts upward under perturbation is being flattered by one specific assumption.
             </p>
-          </div>
-        </>
+          </Card>
+        </div>
       )}
     </div>
   );
@@ -239,7 +274,7 @@ export function SensitivityScreen() {
 function RankIntervals({ rows, worstRank }: { rows: MarketSensitivity[]; worstRank: number }) {
   const rowHeight = 22;
   const W = 900;
-  const labelWidth = 168;
+  const labelWidth = 214;
   const right = 56;
   const H = rows.length * rowHeight + 26;
   const scale = (rank: number) =>
@@ -278,35 +313,47 @@ function RankIntervals({ rows, worstRank }: { rows: MarketSensitivity[]; worstRa
         y={16}
         width={scale(3) - scale(1)}
         height={H - 26}
-        fill="var(--accent)"
-        opacity={0.05}
+        fill="var(--amber)"
+        opacity={0.06}
       />
 
       {rows.map((row, i) => {
         const y = 16 + i * rowHeight + rowHeight / 2;
         const x1 = scale(row.rank_p10);
         const x2 = scale(row.rank_p90);
+        const mid = scale(row.rank_median);
         return (
           <g key={row.market_id}>
-            <text x={labelWidth - 10} y={y + 4} textAnchor="end" fontSize={11.5} fill="var(--ink)">
-              {shortName(row.name)}
+            <text
+              x={labelWidth - 10}
+              y={y + 4}
+              textAnchor="end"
+              fontSize={11.5}
+              fill={i === 0 ? "var(--amber)" : "var(--ink)"}
+              style={{ fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: "0.04em" }}
+            >
+              {shortName(row.name).length > 24 ? `${shortName(row.name).slice(0, 23)}…` : shortName(row.name)}
             </text>
-            <line
-              x1={x1}
-              x2={Math.max(x2, x1 + 2)}
-              y1={y}
-              y2={y}
-              stroke={i === 0 ? "var(--accent)" : "var(--slate-soft)"}
-              strokeWidth={7}
-              opacity={0.35}
+            {/* The interval opens outward from the median. */}
+            <rect
+              className="interval"
+              x={x1}
+              y={y - 4}
+              width={Math.max(x2 - x1, 2)}
+              height={8}
+              fill={i === 0 ? "var(--amber)" : "var(--amber-soft)"}
+              opacity={i === 0 ? 0.55 : 0.3}
+              style={{ ["--ox" as string]: `${mid}px`, ["--oy" as string]: `${y}px`, ["--i" as string]: i }}
             />
             <line
-              x1={scale(row.rank_median)}
-              x2={scale(row.rank_median)}
-              y1={y - 6}
-              y2={y + 6}
-              stroke={i === 0 ? "var(--accent)" : "var(--slate)"}
+              x1={mid}
+              x2={mid}
+              y1={y - 7}
+              y2={y + 7}
+              stroke={i === 0 ? "var(--amber)" : "var(--ink-soft)"}
               strokeWidth={2}
+              className="rise"
+              style={{ ["--i" as string]: i }}
             />
             <text
               x={W - right + 10}
@@ -320,6 +367,44 @@ function RankIntervals({ rows, worstRank }: { rows: MarketSensitivity[]; worstRa
           </g>
         );
       })}
+    </svg>
+  );
+}
+
+/** The leader's top-3 odds as a dial. */
+function SurvivalRing({ value }: { value: number }) {
+  const r = 42;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg width="104" height="104" viewBox="0 0 104 104" aria-hidden="true">
+      <circle className="ring-track" cx="52" cy="52" r={r} strokeWidth="6" />
+      {Array.from({ length: 20 }, (_, i) => {
+        const a = (i / 20) * Math.PI * 2;
+        return (
+          <line
+            key={i}
+            x1={52 + Math.sin(a) * 48}
+            y1={52 - Math.cos(a) * 48}
+            x2={52 + Math.sin(a) * 51}
+            y2={52 - Math.cos(a) * 51}
+            stroke="var(--rule-strong)"
+          />
+        );
+      })}
+      <circle
+        className="ring-value"
+        cx="52"
+        cy="52"
+        r={r}
+        strokeWidth="6"
+        strokeDasharray={c}
+        strokeDashoffset={c * (1 - value)}
+        transform="rotate(-90 52 52)"
+        style={{ animation: "ring-fill 1.2s var(--ease) both", ["--c" as string]: c }}
+      />
+      <text x="52" y="57" textAnchor="middle" fill="var(--ink)" fontSize="17" className="num">
+        {pct(value)}
+      </text>
     </svg>
   );
 }

@@ -180,11 +180,23 @@ export function shortName(name: string): string {
 
 export const stateOf = (name: string) => name.split(",")[1]?.trim().split(" ")[0] ?? "";
 
-/** Sequential blue ramp: muted at low attractiveness, bright at high. */
+/** Sequential ramp from a pale paper pin to full pin red. */
 export function scoreColor(score: number): string {
   const t = Math.max(0, Math.min(1, score / 100));
-  const from = [47, 72, 88];
-  const to = [110, 172, 218];
-  const mix = from.map((c, i) => Math.round(c + (to[i] - c) * t ** 1.15));
+  const from = [226, 214, 188];
+  const to = [184, 50, 42];
+  const mix = from.map((c, i) => Math.round(c + (to[i] - c) * t ** 1.5));
   return `rgb(${mix.join(",")})`;
 }
+
+/** One game-piece colour per factor, used wherever a factor's share is drawn. */
+export const FACTOR_COLORS: Record<string, string> = {
+  market_size: "#b8322a",
+  affluence: "#2c5b8f",
+  growth: "#d39b22",
+  customer_fit: "#7b4a2a",
+  competition: "#3a3f47",
+  cost: "#7f97a8",
+};
+
+export const factorColor = (factor: string) => FACTOR_COLORS[factor] ?? "#6a6355";
